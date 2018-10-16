@@ -13,7 +13,7 @@ from sympy.polys.domains import ZZ
 # =============================================================================
 
 
-#audaxH Não devia ser remove_trailing_zeroes?
+#audaxH Não devia ser _remove_trailing_zeroes?
 def _remove_leading_zeros(lst):
     """
     Returns a list with deleted last entries of the input that are equal to zero.
