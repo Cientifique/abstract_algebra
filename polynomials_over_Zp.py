@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
 """
 """
+
+#Comentários em PT ou inglês?
+
+# =============================================================================
+
 from sympy.polys import galoistools as gt
 from sympy.ntheory import isprime
 from sympy.polys.domains import ZZ
 
+# =============================================================================
 
+
+#audaxH Não devia ser remove_trailing_zeroes?
 def _remove_leading_zeros(lst):
     """
     Returns a list with deleted last entries of the input that are equal to zero.
@@ -13,11 +21,30 @@ def _remove_leading_zeros(lst):
     """
     if lst == [] or lst == [0]:
         return []
-    else: 
+    else:
+        # audaxH Estar a re-escrever a lista em cada iteração não faz mais lento?
         while lst != [] and lst[-1] == 0:
             lst = lst[:-1]
         return lst
-    
+
+#audaxH - Minha sugestão:
+def _remove_trailing_zeros(lst):
+    for k, value in enumerate( lst[::-1] ):
+        if value != 0:
+            break
+    return lst[:-k]
+
+''' 
+lst = [0] + [2] + [1] * 1000 + [0] * 10000
+%timeit _remove_leading_zeros( lst )
+# 224 ms ± 1.09 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+%timeit _remove_trailing_zeros(lst)
+# 40.2 µs ± 583 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
+
+#Cerca de 5000x mais rapido neste caso.
+'''
+
+
 def _represents_natural_number(string):
     """
     Returns True if the input string is an integer >= 0, False otherwise.
@@ -404,7 +431,6 @@ g = Zp_X([1, 0, 2])
 quot, rem = h.div_mod(g)
 
 
-
 h_coefs = h.coefs
 h_coefs.reverse()
 
@@ -425,7 +451,7 @@ g = Zp_X([1,2,0])
 
 
 
-methods = ['is_zero', 'to_list', 'to_dict', 'get_degree', '__repr__']
+methods = ['is_zero', 'to_list', 'to_dict', 'degree', '__repr__']
 
 for method in methods:
     result = getattr(h, method)()
