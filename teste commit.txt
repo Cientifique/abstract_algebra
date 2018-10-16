@@ -1,0 +1,44 @@
+import numpy as np
+
+
+Zp_X =  make_poly_ring(3)
+irred = False
+while not irred:
+    lst = list(np.random.choice([0, 1, 2], size=(50,)))
+    t = Zp_X(lst)
+    irred = t.is_irreducible()
+    print(irred)
+
+
+Zp_X =  make_poly_ring(3)
+h = Zp_X.from_dict({'31' : 2, '4' : 2, '11' : 1, '0' : 1})
+g = Zp_X([1, 0, 2])
+quot, rem = h.div_mod(g)
+
+
+
+h_coefs = h.coefs
+h_coefs.reverse()
+
+
+
+g_coefs = g.coefs.copy()
+g_coefs.reverse()
+
+
+teste = gt.gf_add(h_coefs, g_coefs, 3, ZZ)
+teste2 = gt.gf_add(g_coefs, h_coefs, 3, ZZ)
+
+dct = {'100' : 1, '0' : 1}
+f = Zp_X.from_dict(dct)
+
+f = Zp_X([0,1,2])
+g = Zp_X([1,2,0])
+
+
+
+methods = ['is_zero', 'to_list', 'to_dict', 'get_degree', '__repr__']
+
+for method in methods:
+    result = getattr(h, method)()
+    print(method + ':', result)
