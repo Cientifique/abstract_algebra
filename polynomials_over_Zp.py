@@ -2,8 +2,6 @@
 """
 """
 
-#Comentários em PT ou inglês?
-
 # =============================================================================
 
 from sympy.polys import galoistools as gt
@@ -12,38 +10,16 @@ from sympy.polys.domains import ZZ
 
 # =============================================================================
 
-
-#audaxH - Não devia ser _remove_trailing_zeroes?
-def _remove_leading_zeros(lst):
-    """
-    Returns a list with deleted last entries of the input that are equal to zero.
-    Also, returns an empty list if the input is [0].
-    """
-    if lst == [] or lst == [0]:
-        return []
-    else:
-        # audaxH Estar a re-escrever a lista em cada iteração não faz mais lento?
-        while lst != [] and lst[-1] == 0:
-            lst = lst[:-1]
-        return lst
-
-#audaxH - Minha sugestão:
 def _remove_trailing_zeros(lst):
+    """
+    Removes any zeros at the end of the list.
+    """
+    k=0
     for k, value in enumerate( lst[::-1] ):
         if value != 0:
             break
-    return lst[:-k]
-
-''' 
-lst = [0] + [2] + [1] * 1000 + [0] * 10000
-%timeit _remove_leading_zeros( lst )
-# 224 ms ± 1.09 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-%timeit _remove_trailing_zeros(lst)
-# 40.2 µs ± 583 ns per loop (mean ± std. dev. of 7 runs, 10000 loops each)
-
-#Cerca de 5000x mais rapido neste caso.
-'''
-
+    lst_no_trailing_zeroes = lst if k == 0 else lst[:-k]
+    return lst_no_trailing_zeroes
 
 def _represents_natural_number(string):
     """
@@ -71,14 +47,16 @@ def make_poly_ring(p):
         increasing order of degree.
         """
         
+        #class attribute
         mod_p = p
         
         def __init__(self, lst):
+                        
             # lists the remainders of the integer division by p
             lst = [x % p for x in lst]
             
             # removes any zeros at the end of the list
-            lst = _remove_leading_zeros(lst)
+            lst = _remove_trailing_zeros(lst)
             
             self.coefs = lst
         
@@ -146,6 +124,7 @@ def make_poly_ring(p):
                     other = PolynomialsOverZp.from_dict(other)
                     result = func(self, other)
                 #TODO: ver se não há problemas com o tipo int nos vários métodos.
+                #audaxH - não percebi
                 # instatiates a constant polynomial
                 elif type(other) == int:
                     other = PolynomialsOverZp([other])
@@ -263,7 +242,6 @@ def make_poly_ring(p):
             return self.sub(other)
         
         #TODO: docstring
-        #TODO: testar, por exemplo a comutatividade
         @typesetter
         def mul(self, other):
             """
@@ -397,67 +375,138 @@ def make_poly_ring(p):
             else:
                 return len(self.coefs) - 1
         
-        #TODO: acertar o output para não aparecerem coisas do tipo
-        #                    1*1 + 1*x + 1*x^2.
         def __repr__(self):
             """
             Returns a string with the usual representation of the polynomial.
+            It is in LaTeX compatible form.
             """
+            
+            #Trivial case for the zero polynomial
             if self.is_zero():
                 return '0'
             else:
-                # turns the coefficients into strings, and 1 into the empty string
-                #coefs_to_print = ['' if c == 1 else '%s' %c for c in self.coefs]
-                coefs_to_print = self.coefs
-                result = ' + '.join(
-                        ['%s*x^%s' %(coef, i) for i, coef in enumerate(
-                                coefs_to_print) if coef != 0]
-                        )
-                result = result.replace('x^0', '1')
-                return result
+                deg = self.degree()
+                #Degree zero just returns the constant coeficient
+                if deg == 0:
+                    return str( self.coefs[0] )
+                
+                else:
+                    poly_str_lst = []
+                    #Special formatting for constant coef and x coef
+                    if self.coefs[0] != 0:
+                        poly_str_lst.append( str(self.coefs[0]) )
+                    first_coef = self.coefs[1]
+                    if first_coef != 0:
+                        first_coef_ = '' if first_coef == 1 else first_coef
+                        poly_str_lst.append( '%sx' % first_coef_ )
+                    if deg == 1:
+                        poly_str = ' + '.join( poly_str_lst )
+                    else:
+                        #adds powers to the rest, and hides coef if it is 1
+                        for power, coef in zip( range(2, deg+1), self.coefs[2:] ):
+                            if coef != 0:
+                                coef_ = '' if coef == 1 else coef
+                                poly_str_lst.append( '%sx^{%s}' % ( coef_, power) )
+                        poly_str = ' + '.join( poly_str_lst )
+                    return poly_str
     
     
     return PolynomialsOverZp
 
-#TODO: gerar polinómios aleatórios g, h (com h != 0) e testar
-# h == (h//g)*g + (h%g)
 
 #==============================================================================
+#TESTS
+
+
+if __name__ == '__main__':
+
+    #generates random polynomials for testing
+    import random
     
+    
+    PRIME_P = 3
+    MAX_DEG = 3
+    NPOLY = 100
+    NTESTS = 10
+    
+    
+    Zp_X =  make_poly_ring(PRIME_P)
+    
+    random_poly_lst = []
+    for k in range( NPOLY ):
+        deg = random.randint(0, MAX_DEG)
+        #non-zero poly
+        leading_coef = [ random.randint( 1, PRIME_P-1 ) ]
+        coefs = [ random.randint( 0, PRIME_P-1 ) for x in range(deg) ]
+        random_poly = Zp_X( coefs + leading_coef)
+        print(leading_coef, coefs + leading_coef, random_poly)
+        random_poly_lst.append( random_poly )
+    
+    
+    #test with pairs of these
+    for k in range(NTESTS):
+        g = random.choice( random_poly_lst )
+        h = random.choice( random_poly_lst )
+        
+        print('\n')
+        print('-' * 100)
+        print('g =', g )
+        print('h =', h )
+        print('-' * 100)
+        
+        print('-' * 100)
+        msg_ = 'Test h == (h//g)*g + (h%g)'
+        print(msg_ + ( 96 -len(msg_) ) * ' ', 
+              h == (h//g)*g + (h%g) 
+              )
+        print('\n')
+        
+        print('-' * 100)
+        msg_ = 'Test h*g == g*h'
+        print(msg_ + ( 96 -len(msg_) ) * ' ', 
+              h*g == g*h
+              )
+        print('\n')
+        
+        print('-' * 100)
+        msg_ = 'Test irreducible'
+        print(msg_ + ( 96 -len(msg_) ) * ' ', 
+              g.is_irreducible(), h.is_irreducible()
+              )
+        print('\n')
 
-Zp_X =  make_poly_ring(3)
-h = Zp_X.from_dict({'31' : 2, '4' : 2, '11' : 1, '0' : 1})
-g = Zp_X([1, 0, 2])
-quot, rem = h.div_mod(g)
-
-
-h_coefs = h.coefs
-h_coefs.reverse()
-
-
-
-g_coefs = g.coefs.copy()
-g_coefs.reverse()
-
-
-teste = gt.gf_add(h_coefs, g_coefs, 3, ZZ)
-teste2 = gt.gf_add(g_coefs, h_coefs, 3, ZZ)
-
-dct = {'100' : 1, '0' : 1}
-f = Zp_X.from_dict(dct)
-
-f = Zp_X([0,1,2])
-g = Zp_X([1,2,0])
-
-
-
-methods = ['is_zero', 'to_list', 'to_dict', 'degree', '__repr__']
-
-for method in methods:
-    result = getattr(h, method)()
-    print(method + ':', result)
-
-
-
-
+    print('\n\n', '-' * 100, '\n\n')
+    h = Zp_X.from_dict({'31' : 2, '4' : 2, '11' : 1, '0' : 1})
+    g = Zp_X([1, 0, 2, 0])
+    
+    print('h =', h)
+    print('g =', g)
+    
+    quot, rem = h.div_mod(g)
+    
+    h_coefs = h.coefs
+    h_coefs.reverse()
+       
+    
+    g_coefs = g.coefs.copy()
+    g_coefs.reverse()
+    
+    
+    teste = gt.gf_add(h_coefs, g_coefs, 3, ZZ)
+    teste2 = gt.gf_add(g_coefs, h_coefs, 3, ZZ)
+    
+    dct = {'100' : 1, '0' : 1}
+    f = Zp_X.from_dict(dct)
+    
+    f = Zp_X([0,1,2])
+    g = Zp_X([1,2,0])
+    
+    
+    
+    methods = ['is_zero', 'to_list', 'to_dict', 'degree', '__repr__']
+    
+    for method in methods:
+        result = getattr(h, method)()
+        print(method + ':', result)
+    
 
