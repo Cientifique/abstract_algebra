@@ -10,6 +10,8 @@ from sympy.polys.domains import ZZ
 
 # =============================================================================
 
+#teste
+
 def _remove_trailing_zeros(lst):
     """
     Removes any zeros at the end of the list.
