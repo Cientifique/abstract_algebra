@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 """
 
@@ -10,6 +11,12 @@ from abc import ABC, abstractmethod, abstractclassmethod
 # =============================================================================
 
 def rep_default(x):
+    """
+    Returns the default representation of a python object
+    "<{module}.{qualname} object at {hex(id(x))}>"
+    
+    example <function f at 0x7faeac0211e0> 
+    """
     type_ = type(x)
     module = type_.__module__
     qualname = type_.__qualname__
@@ -72,25 +79,30 @@ class ComRing(ABC):
         if k < 0:
             raise ValueError('k Must non-negative integer')
         if k == 0:
-            return ComRing.one()
+            return self.one()
         elif k == 1:
             return self.copy()
         else:
             result = self
             for k_ in range(k):
-                result = result.mul(result)
+                result = result.mul( result )
             return result
 
     def power(self, k):
         """
-        This methood can be made more general.
+        
+        Arguments:
+            k - non-negative integer
+        
+        Returns:
+            self raised to the power k.
         """
         return self.natural_power(k)
     
     @abstractmethod
-    def symetric(self):
+    def symmetric(self):
         """
-        Returns symetric, so that self + symetric == 0
+        Returns symmetric, so that self + symmetric == 0
         """
         pass
     
@@ -118,25 +130,32 @@ class ComRing(ABC):
     #OPERATOR OVERRIDE
     
     def __eq__(self, other):
+        """ Allows to write self == other """
         return self.equals(other)
     
     def __add__(self, other):
+        """ Allows to write self + other """
         return self.add(other)
     
     def __neg__(self):
-        return self.symetric()
+        """ Allows to write -self """
+        return self.symmetric()
     
     def __sub__(self, other):
-        return self.add( other.symetric() )
+        """ Allows to write self - other """
+        return self.add( other.symmetric() )
     
     def __mul__(self, other):
+        """ Allows to write self * other """
         return self.mul( other )
     
     def __pow__(self, k):
+        """ Allows to write self ** k """
         return self.power(k)
             
     def __radd__(self, other):
-        return other.add(self)
+        """ Allows to use the sum builtin """
+        return other.add( self )
     
 # =============================================================================
 
@@ -144,6 +163,7 @@ class EuclideanDomain(ComRing):
     """
     Euclidean Domain.
     """
+    
     @abstractclassmethod
     def euclidean_function(cls, x):
         """
@@ -164,7 +184,7 @@ class EuclideanDomain(ComRing):
     
     def quotient(self, other):
         """
-        Returns the quotient of the euclidean division in Zp[X].
+        Returns the quotient of the euclidean division.
         """
         result, _ = self.div_mod(other)
         return result
@@ -176,18 +196,24 @@ class EuclideanDomain(ComRing):
         _, result = self.div_mod(other)
         return result
     
+    def isdivisible(self, other):
+        """
+        Returns bool - other divides self
+        """
+        return ( self % other ).is_zero()
+    
     #OPERATOR OVERRIDE
     
     def __floordiv__(self, other):
         """
-        Overriding. Allows to write f // g.
+        Allows to write self // other.
         """
         result = self.quotient(other)
         return result        
 
     def __mod__(self, other):
         """
-        Overriding. Allows to write f % g.
+        Allows to write self % other.
         """
         return self.mod(other)
 
@@ -210,56 +236,141 @@ class Field(EuclideanDomain):
     
     #Now we can use negative powers
     def power(self, k):
+        """
+        Raise self to integer power. For negative powers it multiplies
+        by the inverse of self raised to -k ( > 0).
+        
+        Arguments:
+           k - int 
+         
+        Returns:
+            self raised to the power k.
+        """
         k = int(k)
         if k >= 0:
             return self.natural_power(k)
         else:
-            return self.inverse().natural_power(k)
+            return self.inverse().natural_power( -k )
     
     @classmethod
     def euclidean_function(cls, x):
-        return cls.one()
+        return 1
     
+    #Division with remainder is just normal division in a Field
     def div_mod(self, other):
         return self.div(other), self.zero()
     
     def __truediv__(self, other):
+        """ Allows to write self / other """
         return self.div(other)
 
 # =============================================================================
 
-class PolyComRing(ComRing):
+class PolyOverIntegralDomain(ComRing):
     
-    #Assuming ring of coefs is an integral domain, maybe with class attribute
+    """
+    Polynomial Ring over Commutative Ring which is an Integral Domain.
+    
+    Arguments:
+        coefs - List of elements of the coefRing starting with constant
+            term up to highest degree. Zero polynomial has coefs = []
+        validate_coefs - boolean default False. If True makes sure all coefs
+            belong to coefRing.
+        remove_trailing_zeroes - boolean default False. If True removes all
+            trailing zeroes from the coefs.
+    
+    """
     
     @abstractclassmethod
     def coefRing(cls):
+        """
+        Returns the class that corresponds to the coeficients of the Polynomial.
+        """
         pass
     
     @staticmethod
     def _remove_trailing_zeros(coefs):
+        """
+        Removes trailling zeroes from the list of coefficients.
+        
+        Arguments:
+            coefs - List of elements of the coefRing.
+        """
+        
         k = 0
         for k, value in enumerate( coefs[::-1] ):
             if not value.is_zero():
                 break
-        lst_no_trailing_zeroes = coefs if k == 0 else coefs[:-k]
-        return lst_no_trailing_zeroes
+        
+        res_ = coefs if k == 0 else coefs[:-k]
+        
+        if len(res_) == 1:
+            result = [] if res_[0].is_zero() else res_
+        else:
+            result = res_
+        
+        return result
     
     @classmethod
     def _validate_coefs(cls, coefs):
         """
-        Makes sure coefs are valid.
+        Validates if all coefficients belong to coefRing.
         """
         if any( not isinstance(x , cls.coefRing() ) for x in coefs):
             raise ValueError('All coefficients must belong to coefRing')
     
-    def __init__(self, coefs, validate_coefs = False, remove_trailing_zeroes = False):
+    @classmethod
+    def from_dict(cls, dct, validate_coefs = False):
+        """
+        In case we want to instantiate a polynomial using a dict.
+        Makes it easier to create polynomials such as 1 + x^100.
+        It is assumed the dict has the form {..., power : coefficient, ...}, 
+        where power is int and coefficient is from coefRing.
+        Coefficients are assumed to be zero if they have no corresponding key.
+        
+        Arguments:
+            dct - Dict of form { power : coef }
+            validate_coefs - boolean like constructor.
+        """
+        if len(dct) == 0:
+            result = cls([])
+        else:
+            if validate_coefs:
+                cls._validate_coefs( dict.values() )
+            
+            powers = [ int(x) for x in dct.keys() ]
+            degree = max(powers)
+            
+            # An m-degree polynomial has m+1 coefficients
+            coefs = [ cls.coefRing().zero() for x in range(degree+1) ]
+            
+            # fills in the coefficients
+            for i in powers:
+                coefs[i] = dct[ i ]
+            result = cls(coefs)
+        
+        return result
+    
+    @classmethod
+    def zero(cls):
+        return cls( [] )
+    
+    @classmethod
+    def one(cls):
+        return cls( [ cls.coefRing.one() ] )
+    
+    #Constructor is concrete
+    def __init__(self, coefs, 
+                 validate_coefs = False, remove_trailing_zeroes = False):
+        
         if validate_coefs:
-            PolyComRing.check_coefs( coefs )
+            self._validate_coefs( coefs )
         if remove_trailing_zeroes:
-            coefs_ = PolyComRing._remove_trailing_zeros( coefs )
+            coefs_ = self._remove_trailing_zeros( coefs )
         else:
             coefs_ = coefs
+            
+        #Keeps the coefs of the polynomial
         self.coefs = coefs_
     
     def is_zero(self):
@@ -272,51 +383,59 @@ class PolyComRing(ComRing):
             return self.constant_coef().is_one()
     
     def degree(self):
+        """
+        Returns the degree of the polynomial. If it is the zero polynomial
+            then it returns -1.
+        """
         if self.is_zero():
             return -1
         else:
             return len(self.coefs) - 1
     
     def leading_coef(self):
-        return self.coefs[ self.degree() - 1]
+        """ Returns the leading coefficient of the polynomial"""
+        if self.is_zero():
+            return self.coefRing().zero()
+        else: 
+            return self.coefs[ self.degree() ]
     
     def constant_coef(self):
-        if self.degree() == -1:
-            return 0
+        if self.is_zero():
+            return self.coefRing().zero()
         else:
             return self.coefs[0]
     
     def evaluate(self, x0):
         """
         Evaluates the polynomial at x0.
+        
+        Arguments:
+            x0 - coefRing object
+        Returns
+            coefRing object
         """
-        return sum(  
-                (
-                        coef * x0**k 
-                        for coef, k in enumerate( self.coefs )
-                        if not x0.is_zero()
-                        ),
+        return sum( (
+                coef * x0**k
+                for coef, k in enumerate( self.coefs ) if not x0.is_zero()
+                    ),
                 self.coefRing().zero()
                 )
         
     def remove(self, idx):
         """
-        Removes coef from poly.
+        Removes coef from polynomial making it zero.
+        
+        Arguments:
+            idx - int order of the coef. If < 0 makes no changes.
         """
-        if idx == self.degree():
-            self.coefs = self.coefs[:-1]
-        else:
-            self.coefs[idx] = self.coefRing().zero()
+        
+        if idx >= 0 and not self.is_zero():
+            if idx == self.degree():
+                self.coefs = self.coefs[:-1]
+            else:
+                self.coefs[idx] = self.coefRing().zero()
     
-    @classmethod
-    def zero(cls):
-        return cls([])
-    
-    @classmethod
-    def one(cls):
-        return cls( [ cls.coef_one() ] )
-    
-    def symetric(self):
+    def symmetric(self):
         new = self.__class__( [ -coef for coef in self.coefs] )
         return new
     
@@ -329,7 +448,9 @@ class PolyComRing(ComRing):
         return copy
     
     def add(self, other):
-        common_coefs = [ coef1 + coef2 for coef1, coef2 in zip(self.coefs, other.coefs) ]
+        common_coefs = [ 
+                coef1 + coef2 for coef1, coef2 in zip(self.coefs, other.coefs)
+                ]
         if self.degree() == other.degree():
             res_coefs = self._remove_trailing_zeros( common_coefs )
         else:
@@ -343,16 +464,30 @@ class PolyComRing(ComRing):
         return result
         
     def _mul_monomial(self, mono_coef, mono_power):
+        """
+        Multiplies polynomial by monomial.
+        
+        Arguments:
+            mono_coef - coefficient of monomial.
+            mono_power - power of x for coefficient
+        """
+        
+        #If any of them is zero return zero
+        if mono_coef.is_zero() or self.is_zero():
+            return self.zero()
+        
+        #The first mono_power coefficients are zero
         res_coefs = [ self.coefRing().zero() for x in range( mono_power)]
+        #Then makes the product coef by coef
         for coef in self.coefs:
             res_coefs.append( coef * mono_coef )
+        #Creates new object
         result_ = self.__class__( res_coefs )
         return result_
     
     def mul(self, other):
        
-        result = sum(
-                ( 
+        result = sum( ( 
                         self._mul_monomial(mono_coef, mono_power)
                         for mono_power, mono_coef in enumerate( other.coefs )
                 ),
@@ -364,8 +499,10 @@ class PolyComRing(ComRing):
     def __repr__(self):
         
         """
-        Returns a string with the usual representation of the polynomial.
-        It is in LaTeX compatible form.
+        Returns a string with the usual representation of the polynomial 
+            if the coefRing has a represent methood. Otherwise returns
+            the default python representation of an object.
+        It is in LaTeX compatible form for integers, reals, rationals...
         """
         if hasattr( self.coefRing(), 'represent'):
             #Trivial case for the zero polynomial
@@ -401,34 +538,167 @@ class PolyComRing(ComRing):
 
 # =============================================================================
       
-class PolyOverField(PolyComRing, EuclideanDomain):
+class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
     """
-    Ring of Polynomials over Field.
+    Ring of Polynomials over Field. It is an EuclideanDomain.
     """
     
     def euclidean_function(cls, g ):
+        """
+        Returns the degree of the polynomial.
+        """
         return g.degree()
         
-    #TODO
     def div_mod(self, other):
-        pass
-    
+        """
+        Polynomial euclidean division.
+        
+        Pseudocode:
+        
+        Begin
+            q := 0
+            r := a
+            d := deg(b)
+            c := lc(b)
+            while deg(r) ≥ d do
+                s := lc(r)/c xdeg(r)−d
+                q := q + s
+                r := r − sb
+            end do
+            return (q, r)
+        end.
+
+        """
+        #Cannot divide by zero
+        if other.is_zero():
+            raise ValueError('other must be non-zero')
+        
+        #Initialize quotient and remainder
+        q = self.zero()
+        # At each step self = d × q + r
+        r = self
+        
+        #degree of divisor
+        d = other.degree()
+        
+        #leading coef of divisor
+        c = other.leading_coef()
+        
+        while r.degree() >= d:
+            
+            # Divide the leading terms
+            s_coef = r.leading_coef() / c # times x power 
+            s_deg = r.degree() - d
+            s = self.__class__.from_dict( { s_deg : s_coef})
+            
+            #Update values
+            q = s + q
+            r = r - s * other
+        
+        return (q, r)
 
 
 # =============================================================================
 
+class ComRingQuotient( ComRing ):
+    
+    #Class attribute that says if can reduce to cannonical
+    can_reduce = False
+    
+    @abstractclassmethod
+    def is_equivalent(cls, a, b):
+        pass
+    
+    @abstractclassmethod
+    def baseRing(self, other):
+        pass
+    
+    def __init__(self, rep ):
+        self.rep = rep
+    
+    def add(self, other):
+        return self.__class__( self.rep + other.rep )
+    
+    def equals(self, other):
+        if self.can_reduce:
+            return self.rep == other.rep
+        else:
+            return self.is_equivalent( self.rep, other.rep )
+    
+    def mul(self, other):
+        return self.__class__( self.rep * other.rep )
+    
+    @classmethod
+    def one(cls):
+        if cls.can_reduce:
+            return cls( cls.baseRing().one(), reduce = False )
+        else:
+            return cls( cls.baseRing().one() )
+    
+    @classmethod
+    def zero(cls):
+        if cls.can_reduce:
+            return cls( cls.baseRing().zero(), reduce = False )
+        else:
+            return cls( cls.baseRing().zero() )
+    
+    def symmetric(self):
+        return self.__class__( -self.rep )
+    
+    def is_zero(self):
+        if self.can_reduce:
+            return self.rep.is_zero()
+        else:
+            return self.is_equivalent( self.rep, self.zero() )
+    
+    def is_one(self):
+        if self.can_reduce:
+            return self.rep.is_one()
+        else:
+            return self.is_equivalent( self.rep, self.one() )
 
-#TODO: Function that generates the class Zp(Field) for given p prime
-#TODO: Function that generates the class ZpX(Field) for given p prime (use above)
-#TODO: Function that takes Ring R and a method is_in_I and creates quotient ring Q = R/I
+
+#TODO: Is it EuclideanDomain?
+class ComRingQuotientED( ComRingQuotient ):
+    
+    """
+    Ring that is R/I where R is an EuclideanDomain.
+    """
+    
+    #Overrides
+    can_reduce = True
+    
+    @abstractclassmethod
+    def gen(self, other):
+        """
+        Returns the generator of the Ideal.
+        """
+        pass
+    
+    def is_equivalent(self, other):
+        return other.isdivisible( self.gen() )
+    
+    def __init__(self, rep, reduce = True):
+        """
+        Overrides constructor of ComRingQuotient.
+        
+        Arguments:
+            rep - representative
+            reduce - boolean default True - uses rep % gen.
+        """
+        if reduce:
+            self.rep = rep % self.gen()
+        else:
+            self.rep = rep    
+
 #TODO: Class PolyOverGalois(PolyOverField) with is_irreducible implemented
+class PolyOverGalois(PolyOverField):
+    
+    #TODO:
+    def is_irreducible(self):
+        pass
 
 
-
+#TODO: can then make functions that generate these classes for various gen   
         
-        
-        
-        
-        
-
 
