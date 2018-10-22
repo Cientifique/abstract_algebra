@@ -374,6 +374,46 @@ class PolyOverIntegralDomain(ComRing):
             
         #Keeps the coefs of the polynomial
         self.coefs = coefs_
+        
+    def typesetter(func):
+        """
+        Decorator.
+        Allows binary operations to accept several input types: class instances 
+        of polynomials (the default assumption), elements of the ring of 
+        coefficients, lists and dicts.
+        """
+        def new_func(self, other):
+            
+            # in this case there is nothing to do, the default methods already 
+            #assumes that the input is a class instance
+            if isinstance(other, self.__class__):
+                result = func(self, other)
+            
+            # instantiates a constant polynomial if other is an element of coefRing
+            elif isinstance(other, self.__class__.coefRing()):
+                coefs = [other]
+                other = self.__class__(coefs, validate_coefs=False, 
+                                       remove_trailing_zeroes=True)
+                result = func(self, other)
+            
+            # instantiates a polynomial from the list
+            elif type(other) == list:
+                other = self.__class__(other, validate_coefs=True, 
+                                       remove_trailing_zeroes=True)
+                result = func(self, other)
+            
+            # instantiates a polynomial from the dict
+            elif type(other) == dict:
+                other = self.__class__.from_dict(other, validate_coefs = False)
+                result = func(self, other)
+            
+            else:
+                error_msg = 'Not a valid polynomial for binary operation.'
+                raise TypeError(error_msg)
+            return result
+        
+        return new_func
+            
     
     def is_zero(self):
         return self.coefs == []
@@ -442,6 +482,7 @@ class PolyOverIntegralDomain(ComRing):
         new = self.__class__( [ -coef for coef in self.coefs] )
         return new
     
+    @typesetter
     def equals(self, other):
         return self.coefs == other.coefs
     
@@ -450,6 +491,7 @@ class PolyOverIntegralDomain(ComRing):
         copy = self.__class__( copy_coefs )    
         return copy
     
+    @typesetter
     def add(self, other):
         common_coefs = [ 
                 coef1 + coef2 for coef1, coef2 in zip(self.coefs, other.coefs)
@@ -488,6 +530,7 @@ class PolyOverIntegralDomain(ComRing):
         result_ = self.__class__( res_coefs )
         return result_
     
+    @typesetter
     def mul(self, other):
        
         result = sum( ( 
@@ -551,7 +594,9 @@ class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
         Returns the degree of the polynomial.
         """
         return g.degree()
-        
+    
+    #TODO: typesetter, talvez definir abstract method na classe PolyOverIntegralDomain
+    # e pô-lo lá
     def div_mod(self, other):
         """
         Polynomial euclidean division.
@@ -599,7 +644,9 @@ class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
             r = r - s * other
         
         return (q, r)
-        
+    
+    #TODO: typesetter, talvez definir abstract method na classe PolyOverIntegralDomain
+    # e pô-lo lá    
     def gcd(self, other, monic=False):
         """
         Returns the greatest common divisor of self and other with leading 
@@ -629,7 +676,8 @@ class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
         
         return result
     
-    #TODO: testar
+    #TODO: typesetter, talvez definir abstract method na classe PolyOverIntegralDomain
+    # e pô-lo lá
     def extended_gcd(self, other, monic=False):
         """
         Extended euclidean algorithm. Returns a tuple (h, s, t) of polynomials 
