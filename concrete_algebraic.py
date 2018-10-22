@@ -66,13 +66,18 @@ class Integer(EuclideanDomain):
 
 class Rational(Field):
 
-    def __init__(self, p, q):
+    def __init__(self, p, q=1):
+        if q == 0:
+            raise ValueError('Denominator cannot be zero.')
+        if p ==0:
+            q = 1
         gcd_ = gcd(p, q)
         self.p = p // gcd_
         self.q = q // gcd_
     
     def add(self, other):
-        return Rational( self.p*other.q + self.q * other.p, self.q * self.p )
+        #XXX: o denominador é self.q * other.q
+        return Rational( self.p*other.q + self.q * other.p, self.q * other.q )
     def equals(self, other):
         return self.p == other.p and self.q  == other.q
     def mul(self, other):
@@ -80,7 +85,6 @@ class Rational(Field):
     @classmethod
     def one(cls):
         return Rational(1, 1)
-    
     @classmethod
     def zero(cls):
         return Rational(0, 1)    
@@ -98,6 +102,8 @@ class Rational(Field):
     def __repr__(self):
         return self.represent()
     def inverse(self):
+        if self.is_zero():
+            raise ValueError('No inverse for zero.')
         return Rational(self.q, self.p)
     
 
