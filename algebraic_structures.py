@@ -77,7 +77,7 @@ class ComRing(ABC):
         #Makes sure it is an integer
         k = int(k)
         if k < 0:
-            raise ValueError('k Must non-negative integer')
+            raise ValueError('k must be a non-negative integer')
         if k == 0:
             return self.one()
         elif k == 1:
@@ -167,10 +167,12 @@ class EuclideanDomain(ComRing):
     @abstractclassmethod
     def euclidean_function(cls, x):
         """
-        Euclidean function f so that in the Euclidean Domain R:
+        Euclidean function f : R\{0} ---> N in the Euclidean Domain R that
+        satisfies:
             
-            If a and b are in R and b is nonzero, then there are q and r in R 
-            such that a = bq + r and either r = 0 or f(r) < f(b).
+            - if a and b are in R and b is nonzero then there are unique q and r in R 
+                such that a = bq + r and either r = 0 or f(r) < f(b);
+            - if a and b are nonzero then f(a) <= f(ab)
         
         """
         pass
@@ -357,7 +359,7 @@ class PolyOverIntegralDomain(ComRing):
     
     @classmethod
     def one(cls):
-        return cls( [ cls.coefRing.one() ] )
+        return cls( [ cls.coefRing().one() ] )
     
     #Constructor is concrete
     def __init__(self, coefs, 
@@ -376,11 +378,12 @@ class PolyOverIntegralDomain(ComRing):
     def is_zero(self):
         return self.coefs == []
     
+    #TODO: testar
     def is_one(self):
-        if self.degree() != 1:
+        if self.degree() != 0:
             return False
         else:
-            return self.constant_coef().is_one()
+            return self.equals(self.__class__.one())
     
     def degree(self):
         """
@@ -596,6 +599,86 @@ class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
             r = r - s * other
         
         return (q, r)
+        
+    def gcd(self, other, monic=False):
+        """
+        Returns the greatest common divisor of self and other with leading 
+        coefficient = 1.
+        Recall that, if f = g*q + r with deg(r) < deg(g), then
+            gcd(f,g) = gcd(g, r),
+        and the remainder eventually reaches zero.
+        If monic = True then a monic polynomial is returned. Recall that gcd is
+        unique up to multiplication by the coefRing's units, which in this case
+        are all the non zero elements.
+        """
+        if self.is_zero() and other.is_zero():
+            raise ValueError('gcd(0,0) is not defined.')
+        
+        f = self.copy()
+        g = other.copy()
+        
+        while not g.is_zero():
+            _, rem = f.div_mod(g)
+            f = g
+            g = rem
+        
+        result = f
+        if monic:
+            lead_coef = f.leading_coef()
+            result = f._mul_monomial(lead_coef.inverse(), 0)
+        
+        return result
+    
+    #TODO: testar
+    def extended_gcd(self, other, monic=False):
+        """
+        Extended euclidean algorithm. Returns a tuple (h, s, t) of polynomials 
+        satisfying Bezout's identity:
+            -> h = gcd(self, other)
+            -> h = self * s + other * t
+            -> deg(s) < deg(other) - deg(h)
+            -> deg(t) < deg(self) - deg(h).
+        If monic = True then h is monic and s, t are multiplied by the leading
+        coefficient of h.
+        """
+        r0 = self.copy()
+        r1 = other.copy()
+        _, r2 = r0.div_mod(r1)
+        
+        s0 = self.__class__.one()
+        s1 = self.__class__.zero()
+        
+        t0 = self.__class__.zero()
+        t1 = self.__class__.one()
+        
+        while not r2.is_zero():
+            q, r2 = r0.div_mod(r1)
+            
+            s2 = s0 - s1*q
+            t2 = t0 - t1*q
+            
+            r0 = r1
+            r1 = r2
+            
+            s0 = s1
+            s1 = s2
+            
+            t0 = t1
+            t1 = t2
+            
+        if monic:
+            lead_coef = r0.leading_coef()
+            r0 = r0._mul_monomial(lead_coef.inverse(), 0)
+            s0 = s0._mul_monomial(lead_coef.inverse(), 0)
+            t0 = t0._mul_monomial(lead_coef.inverse(), 0)
+        
+        return (r0, s0, t0)
+            
+            
+        
+        
+        
+           
 
 
 # =============================================================================
@@ -610,7 +693,7 @@ class ComRingQuotient( ComRing ):
         pass
     
     @abstractclassmethod
-    def baseRing(self, other):
+    def baseRing(cls, other):
         pass
     
     def __init__(self, rep ):
