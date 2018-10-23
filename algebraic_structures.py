@@ -121,6 +121,13 @@ class ComRing(ABC):
         pass
     
     @abstractmethod
+    def is_invertible(self):
+        """
+        Returns True if self is a ring unit, False otherwise.
+        """
+        pass
+    
+    @abstractmethod
     def equals(self, other):
         """
         Returns boolean indicating if self == other.
@@ -182,7 +189,7 @@ class EuclideanDomain(ComRing):
         """
         Division with remainder. Returns quotient, remainder.
         """
-        pass
+        pass    
     
     def quotient(self, other):
         """
@@ -261,6 +268,14 @@ class Field(EuclideanDomain):
     #Division with remainder is just normal division in a Field
     def div_mod(self, other):
         return self.div(other), self.zero()
+    
+    def is_invertible(self):
+        """
+        Returns True if self is a ring unit, False otherwise.
+        """
+        result = not self.is_zero()
+        return result
+    
     
     def __truediv__(self, other):
         """ Allows to write self / other """
@@ -425,6 +440,14 @@ class PolyOverIntegralDomain(ComRing):
         else:
             return self.equals(self.__class__.one())
     
+    def is_invertible(self):
+        """
+        Returns True if self is a ring unit, False otherwise.
+        """
+        result = self.degree() == 0 and self.leading_coef().is_invertible()
+        return result
+
+    
     def degree(self):
         """
         Returns the degree of the polynomial. If it is the zero polynomial
@@ -581,6 +604,7 @@ class PolyOverIntegralDomain(ComRing):
                     return poly_str
         else:
             return rep_default(self)
+        
 
 # =============================================================================
       
@@ -721,12 +745,7 @@ class PolyOverField(PolyOverIntegralDomain, EuclideanDomain):
             t0 = t0._mul_monomial(lead_coef.inverse(), 0)
         
         return (r0, s0, t0)
-            
-            
-        
-        
-        
-           
+
 
 
 # =============================================================================
