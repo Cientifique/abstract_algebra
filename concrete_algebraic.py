@@ -44,6 +44,12 @@ class Integer(EuclideanDomain):
         return self.int_ == other.int_
     def mul(self, other):
         return Integer( self.int_ * other.int_ )
+    
+    def is_invertible(self):
+        result = self.equals(self.__class__.one()) or self.equals(
+                self.__class__.one().symmetric())
+        return result
+    
     @classmethod
     def one(cls):
         return Integer(1)
