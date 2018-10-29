@@ -471,6 +471,8 @@ class PolyOverIntegralDomain(ComRing):
         else:
             return self.coefs[0]
     
+    #TODO: há erros, por exemplo com f = 1/3 + 1/3x + 1/3x^{2} dá
+    #                   f(2) = 19/3
     def evaluate(self, x0):
         """
         Evaluates the polynomial at x0.
@@ -482,10 +484,40 @@ class PolyOverIntegralDomain(ComRing):
         """
         return sum( (
                 coef * x0**k
-                for coef, k in enumerate( self.coefs ) if not x0.is_zero()
+                for k, coef in enumerate( self.coefs ) if not x0.is_zero()
                     ),
                 self.coefRing().zero()
                 )
+    
+    def evaluate_horner(self, x0):
+        """
+        Evaluates the polynomial at x0 using Horner's method.
+        If f(x) = a_0 + ... + a_n * x^n, define recursively:
+            --> b_n = x_n 
+            --> b_(n-1) = a_(n-1) + b_n * x0
+            ...
+            --> b_1 = a_1 + b_2 * x0
+            --> b_0 = a_0 + b_1 * x0
+        Then f(x0) = b0.
+        Arguments:
+            x0 - coefRing object
+        Returns
+            coefRing object
+        """
+        if not isinstance(x0, self.coefRing()):
+            raise ValueError(
+                    'Constant must belong in the class of coefficients'
+                    )
+        
+        if self.degree() <= 0:
+            result = self.constant_coef()
+        else:
+            n = self.degree()
+            result = self.leading_coef()
+            for i in range(n):
+                result = self.coefs[n-i-1] + result * x0
+        
+        return result
         
     def remove(self, idx):
         """
